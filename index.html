@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pengambilan Ukuran Celana Pria</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header>
+  <h1>PENGAMBILAN UKURAN CELANA PRIA</h1>
+  <p>Cara Mengambil Ukuran Celana Pria · SMK Tata Busana kelas XI</p>
+</header>
+<main>
+  <section class="kolom" aria-label="Daftar ukuran">
+    <h2>DAFTAR UKURAN</h2>
+    <div id="daftar"></div>
+  </section>
+  <section id="viewer" aria-label="Model 3D tubuh pria">
+    <div id="hint">Seret untuk memutar · cubit/scroll untuk zoom · ketuk badan untuk memilih ukuran</div>
+    
+    <div class="ctl" id="zoom"><button id="zin" aria-label="Zoom in">+</button><button id="zout" aria-label="Zoom out">−</button><button id="reset" aria-label="Kembalikan posisi awal" title="Reset">⟲</button></div>
+    <div class="ctl" id="views"></div>
+  </section>
+  <section class="kolom" id="info" aria-live="polite"></section>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="js/data.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
