@@ -4,7 +4,65 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Pengambilan Ukuran Celana Pria</title>
-<link rel="stylesheet" href="css/style.css">
+<style>
+/* ===== PENGATURAN WARNA (ubah di sini) ===== */
+:root{
+  --latar:#fbfbf8;            /* latar halaman */
+  --kolom:#f7d999;            /* kolom / panel */
+  --teks:#6d422f;             /* tulisan */
+  --teks-kolom:rgba(109,66,47,.6); /* tulisan sekunder dalam kolom (transparansi 40%) */
+  --garis:rgba(109,66,47,.18);
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+*,*::before,*::after{box-sizing:inherit}
+html,body{margin:0;background:var(--latar);color:var(--teks);font-family:"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif}
+header{padding:14px 18px 6px}
+header h1{margin:0;font-size:clamp(18px,3.2vw,26px);letter-spacing:.04em}
+header p{margin:2px 0 0;font-size:13px;color:var(--teks-kolom)}
+main{display:grid;gap:12px;padding:10px 14px 18px;grid-template-columns:1fr}
+.kolom{background:var(--kolom);border-radius:18px;padding:14px}
+.kolom h2{margin:0 0 8px;font-size:15px;letter-spacing:.03em}
+.sub{color:var(--teks-kolom);font-size:13px;line-height:1.55}
+/* daftar ukuran */
+#daftar{display:flex;flex-direction:column;gap:7px}
+#daftar button{all:unset;cursor:pointer;display:flex;gap:10px;align-items:center;padding:10px 12px;border-radius:12px;background:rgba(251,251,248,.55);font-size:14px;font-weight:600;transition:background .2s,color .2s,transform .15s}
+#daftar button:hover{background:rgba(251,251,248,.9)}
+#daftar button:active{transform:scale(.98)}
+#daftar button:focus-visible{outline:2px solid var(--teks)}
+#daftar button b{display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--teks);color:var(--kolom);font-size:12px;flex:none}
+#daftar button.aktif{background:var(--teks);color:var(--latar)}
+#daftar button.aktif b{background:var(--kolom);color:var(--teks)}
+/* viewer */
+#viewer{position:relative;border-radius:18px;overflow:hidden;background:linear-gradient(#fff,#f1ecdf);height:62vh;min-height:360px;touch-action:none;cursor:grab}
+#viewer:active{cursor:grabbing}
+#viewer canvas{display:block;width:100%;height:100%}
+.ctl{position:absolute;display:flex;gap:6px}
+.ctl button{all:unset;cursor:pointer;min-width:38px;height:38px;padding:0 12px;display:grid;place-items:center;border-radius:12px;background:var(--kolom);font-size:13px;font-weight:600;box-shadow:0 2px 8px rgba(109,66,47,.18);transition:transform .15s,background .2s}
+.ctl button:hover{background:#fbe6b5}.ctl button:active{transform:scale(.94)}
+#zoom{right:10px;top:10px;flex-direction:column}
+#zoom button{font-size:20px;padding:0}
+#views{left:50%;bottom:10px;transform:translateX(-50%);width:max-content;max-width:calc(100% - 20px)}
+#hint{position:absolute;left:12px;top:12px;font-size:12px;color:var(--teks-kolom);pointer-events:none}
+#legenda{position:absolute;left:12px;bottom:58px;font-size:11px;color:var(--teks-kolom);pointer-events:none;line-height:1.5}
+#legenda i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
+/* panel info */
+#info h3{margin:0 0 4px;font-size:18px}
+#info h4{margin:14px 0 4px;font-size:13px;letter-spacing:.05em;text-transform:uppercase}
+#info ol,#info ul{margin:0;padding-left:20px;font-size:14px;line-height:1.6;color:var(--teks-kolom)}
+#info li{margin-bottom:3px}
+#info .awal{font-size:14px;line-height:1.55;color:var(--teks-kolom)}
+#info.ganti{animation:masuk .35s ease}
+@keyframes masuk{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+/* tata letak landscape */
+@media (min-width:860px) and (min-aspect-ratio:1/1){
+  html,body{height:100%;overflow:hidden}
+  body{display:flex;flex-direction:column}
+  main{flex:1;min-height:0;grid-template-columns:270px 1fr 330px;padding-bottom:14px}
+  #viewer{height:100%;min-height:0}
+  .kolom{overflow:auto}
+}
+@media (prefers-reduced-motion:reduce){#info.ganti{animation:none}}
+</style>
 </head>
 <body>
 <header>
@@ -26,7 +84,217 @@
 </main>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="js/data.js"></script>
-<script src="js/app.js"></script>
+<script>
+/* =====================================================================
+   DATA MATERI — edit teks, langkah, sudut kamera di sini
+   view: th = sudut putar (0 depan, 1.57 kiri model, -1.57 kanan model, 3.14 belakang)
+         ty = tinggi titik fokus, d = jarak kamera
+   ===================================================================== */
+const DATA = [
+ {id:"pinggang", nama:"Lingkar Pinggang", awal:"Di bagian pinggang terkecil (sekitar 3 jari di atas pusar), ujung meteran bertemu di depan tengah.",
+  langkah:["Minta model berdiri tegak dengan perut rileks.","Ikatkan tali/pita tipis di pinggang untuk menandai pinggang terkecil.","Lingkarkan meteran mengikuti tali, sejajar lantai.","Pertemukan ujung meteran di depan, lalu baca angkanya."],
+  perhatian:["Meteran tidak boleh terlalu longgar atau menekan.","Selipkan satu jari di bawah meteran untuk kelonggaran.","Pastikan meteran sejajar lantai di seluruh sisi."],
+  view:{th:.55,ty:1.07,d:1.25}},
+ {id:"panggul", nama:"Lingkar Panggul", awal:"Di bagian panggul terbesar (sekitar 18–20 cm di bawah pinggang), ujung meteran bertemu di depan.",
+  langkah:["Minta model berdiri tegak, kedua kaki rapat.","Cari bagian panggul yang paling besar dari samping.","Lingkarkan meteran mengelilingi panggul, sejajar lantai.","Pertemukan ujung meteran di depan dan baca angkanya."],
+  perhatian:["Pastikan meteran tidak miring ke belakang.","Model tidak menahan napas atau menegangkan otot.","Ukur di atas pakaian yang tipis dan pas badan."],
+  view:{th:.6,ty:.92,d:1.35}},
+ {id:"lutut", nama:"Lingkar Lutut", awal:"Di tengah lutut, ujung meteran bertemu di bagian depan lutut.",
+  langkah:["Minta model berdiri dengan kaki lurus.","Tentukan posisi tengah lutut.","Lingkarkan meteran mengelilingi lutut.","Pertemukan ujung meteran dan baca angkanya."],
+  perhatian:["Kaki dalam keadaan lurus, tidak ditekuk.","Meteran sejajar lantai, tidak menekan kulit."],
+  view:{th:.7,ty:.5,d:1.1}},
+ {id:"pergelangan", nama:"Lingkar Pergelangan Kaki", awal:"Di pergelangan kaki (di atas mata kaki), ujung meteran bertemu di depan.",
+  langkah:["Minta model berdiri tegak.","Tentukan bagian pergelangan kaki yang akan diukur.","Lingkarkan meteran mengelilingi pergelangan kaki.","Pertemukan ujung meteran dan baca angkanya."],
+  perhatian:["Ukur tanpa sepatu dan kaus kaki tebal.","Beri kelonggaran sesuai model celana."],
+  view:{th:.7,ty:.12,d:.9}},
+ {id:"pesak", nama:"Pesak", awal:"Dari ujung pinggang belakang bagian tengah.",
+  langkah:["Minta model berdiri tegak.","Letakkan ujung meteran di pinggang belakang bagian tengah.","Teruskan meteran melewati selangkangan di antara kedua kaki.","Naikkan meteran hingga pinggang tengah depan, lalu baca angkanya."],
+  perhatian:["Meteran mengikuti lekuk tubuh, tidak tegang.","Jaga posisi meteran tetap di garis tengah tubuh.","Lakukan dengan sopan dan hati-hati (boleh dibantu model)."],
+  view:{th:.9,ph:2.15,ty:.85,d:1.35}, tembus:true},
+ {id:"panjang", nama:"Panjang Celana", awal:"Dari lingkar pinggang bagian sisi.",
+  langkah:["Minta model berdiri tegak.","Letakkan ujung meteran di pinggang sisi.","Tarik lurus ke bawah mengikuti sisi tubuh dan kaki.","Berhenti pada panjang yang diinginkan (acuan: mata kaki) lalu baca angkanya."],
+  perhatian:["Meteran lurus dan tegak, tidak miring.","Tentukan dulu panjang akhir celana sesuai model."],
+  view:{th:1.1,ty:.6,d:2.4}}
+];
+const AWAL = {th:.45, ph:1.45, d:2.7, ty:.62};   // posisi awal kamera
+const WARNA_TUBUH = 0xa8a8a8;                      // abu-abu
+const WARNA_METERAN = 0xf5c518;                    // garis kuning
+/* ===================================================================== */
+
+/* ---------- Pembuat bentuk tubuh (loft elips) ---------- */
+/* interpolasi kubik (Hermite) → permukaan mulus tanpa sudut */
+const mk = pts => {
+  const n = pts.length;
+  const sl = (k, c) => { const a = pts[Math.max(k-1,0)], b = pts[Math.min(k+1,n-1)]; return (b[c]-a[c])/(b[0]-a[0]); };
+  return y => {
+    if (y <= pts[0][0]) return [pts[0][1], pts[0][2]];
+    for (let i = 0; i < n-1; i++) {
+      const a = pts[i], b = pts[i+1];
+      if (y <= b[0]) {
+        const h = b[0]-a[0], t = (y-a[0])/h, t2 = t*t, t3 = t2*t;
+        const h00 = 2*t3-3*t2+1, h10 = t3-2*t2+t, h01 = -2*t3+3*t2, h11 = t3-t2;
+        const f = c => Math.max(.0008, h00*a[c]+h10*h*sl(i,c)+h01*b[c]+h11*h*sl(i+1,c));
+        return [f(1), f(2)];
+      }
+    }
+    const l = pts[n-1]; return [l[1], l[2]];
+  };
+};
+const torso = mk([[.72,.001,.001],[.74,.09,.07],[.8,.158,.105],[.92,.19,.125],[1.07,.15,.105],[1.25,.17,.115],[1.38,.19,.105],[1.45,.11,.078],[1.5,.05,.05],[1.53,.001,.001]]);
+const leg   = mk([[.05,.033,.036],[.08,.033,.036],[.2,.042,.045],[.35,.058,.062],[.5,.06,.066],[.7,.082,.088],[.9,.097,.103],[.97,.095,.1],[1.02,.06,.07]]);
+const arm   = mk([[.72,.001,.001],[.745,.026,.018],[.78,.034,.022],[.84,.03,.03],[1.1,.036,.036],[1.25,.045,.045],[1.38,.054,.054],[1.44,.048,.05],[1.47,.001,.001]]);
+const neck  = mk([[1.44,.05,.05],[1.6,.043,.046]]);
+const LX = .085;
+
+function loft(f, y0, y1, cx, off, mat, rings=140, seg=72){
+  const pos = [], idx = [];
+  for (let r = 0; r <= rings; r++){
+    const y = y0 + (y1-y0)*r/rings, [rx, rz] = f(y);
+    for (let j = 0; j < seg; j++){ const a = j/seg*Math.PI*2; pos.push(cx+(rx+off)*Math.cos(a), y, (rz+off)*Math.sin(a)); }
+  }
+  for (let r = 0; r < rings; r++) for (let j = 0; j < seg; j++){
+    const a = r*seg+j, b = r*seg+(j+1)%seg, c = a+seg, d = b+seg;
+    idx.push(a,c,b, b,c,d);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setIndex(idx); g.setAttribute("position", new THREE.Float32BufferAttribute(pos,3)); g.computeVertexNormals();
+  return new THREE.Mesh(g, mat);
+}
+
+/* ---------- Scene ---------- */
+const wrap = document.getElementById("viewer");
+const renderer = new THREE.WebGLRenderer({antialias:true, alpha:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+wrap.prepend(renderer.domElement);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(32, 1, .05, 50);
+scene.add(new THREE.HemisphereLight(0xffffff, 0xd9cdb4, .95));
+const sun = new THREE.DirectionalLight(0xffffff, .8); sun.position.set(2,4,3); scene.add(sun);
+const sun2 = new THREE.DirectionalLight(0xffffff, .35); sun2.position.set(-2,2,-3); scene.add(sun2);
+
+const body = new THREE.Group(); scene.add(body);
+const mBody = new THREE.MeshStandardMaterial({color:WARNA_TUBUH, roughness:.85, metalness:0, side:THREE.DoubleSide});
+body.add(loft(torso,.72,1.53,0,0,mBody));
+[-LX, LX].forEach(x => {
+  body.add(loft(leg,.05,1.02,x,0,mBody));
+  const foot = new THREE.Mesh(new THREE.SphereGeometry(1,48,32), mBody);
+  foot.scale.set(.045,.04,.115); foot.position.set(x,.04,.045); body.add(foot);
+});
+[-.255, .255].forEach(x => {
+  body.add(loft(arm,.72,1.47,x*.96,0,mBody));
+});
+body.add(loft(neck,1.44,1.6,0,0,mBody));
+const head = new THREE.Mesh(new THREE.SphereGeometry(1,48,36), mBody); head.scale.set(.085,.11,.095); head.position.set(0,1.65,.005); body.add(head);
+const floor = new THREE.Mesh(new THREE.CircleGeometry(.55,64), new THREE.MeshBasicMaterial({color:0xf7d999, transparent:true, opacity:.55}));
+floor.rotation.x = -Math.PI/2; floor.position.y = .002; scene.add(floor);
+
+/* ---------- Penanda ukuran ---------- */
+const O = .009;
+const matTape = (through) => new THREE.MeshStandardMaterial({color:WARNA_METERAN, emissive:0xb88a00, emissiveIntensity:.5, roughness:.5, transparent:through, opacity:through?.92:1, depthTest:!through});
+const matBand = new THREE.MeshBasicMaterial({color:WARNA_METERAN, transparent:true, opacity:.4, depthWrite:false, side:THREE.DoubleSide, polygonOffset:true, polygonOffsetFactor:-2, polygonOffsetUnits:-2});
+const ringPts = (f,y,cx) => { const [rx,rz]=f(y), p=[]; for(let i=0;i<72;i++){const a=i/72*Math.PI*2;p.push(new THREE.Vector3(cx+(rx+O)*Math.cos(a),y,(rz+O)*Math.sin(a)));} return p; };
+const surfX = y => Math.max(torso(y)[0], y<.98 ? LX+leg(y)[0] : 0) + O + .004;
+function ringSpec(f,y,cx){ return {pts:ringPts(f,y,cx), closed:true, start:new THREE.Vector3(cx,y,f(y)[1]+O+.004),
+  band:()=>loft(f,y-.03,y+.03,cx,O*.5,matBand,16)}; }
+const sidePts = []; for(let y=1.07; y>=.0799; y-=.0499) sidePts.push(new THREE.Vector3(surfX(y),y,0)); sidePts.push(new THREE.Vector3(surfX(.08),.08,0));
+const SPEC = {
+  pinggang: ringSpec(torso,1.07,0),
+  panggul:  ringSpec(torso,.92,0),
+  lutut:    ringSpec(leg,.5,LX),
+  pergelangan: ringSpec(leg,.1,LX),
+  pesak: {closed:false, pts:[[0,1.07,-.116],[0,.97,-.14],[0,.87,-.137],[0,.79,-.085],[0,.735,-.03],[0,.72,0],[0,.735,.03],[0,.79,.09],[0,.87,.132],[0,.97,.132],[0,1.07,.116]].map(p=>new THREE.Vector3(...p))},
+  panjang: {closed:false, pts:sidePts}
+};
+const rS = .014, rA = .022;
+const mS = new THREE.MeshBasicMaterial({color:0xc9922e}), mA = new THREE.MeshBasicMaterial({color:0xe8473a}), mE = new THREE.MeshBasicMaterial({color:0x2f7d5b});
+const ITEM = {}, hits = [];
+DATA.forEach(m => {
+  const s = SPEC[m.id], g = new THREE.Group(); g.visible = false; scene.add(g);
+  const curve = new THREE.CatmullRomCurve3(s.pts, s.closed);
+  const tape = new THREE.Mesh(new THREE.TubeGeometry(curve, 160, .0055, 8, s.closed), matTape(!!m.tembus));
+  if (m.tembus) tape.renderOrder = 10;
+  g.add(tape);
+  if (s.band) g.add(s.band());
+  ITEM[m.id] = {g};
+});
+
+/* ---------- Kamera orbit buatan sendiri (halus, ada redaman) ---------- */
+const cur = {...AWAL}, goal = {...AWAL};
+const nearest = (c, t) => c + ((t - c + Math.PI) % (Math.PI*2) + Math.PI*2) % (Math.PI*2) - Math.PI;
+const clamp = (v,a,b) => Math.min(b, Math.max(a, v));
+function limit(){ goal.ph = clamp(goal.ph,.35,2.95); goal.d = clamp(goal.d,.6,4.2); goal.ty = clamp(goal.ty,.1,1.5); }
+function setView(v){ if(v.th!==undefined) goal.th = nearest(cur.th, v.th); if(v.ph!==undefined) goal.ph=v.ph; if(v.d!==undefined) goal.d=v.d; if(v.ty!==undefined) goal.ty=v.ty; limit(); }
+
+const ptr = new Map(); let moved = 0, pinch = 0, down = null;
+const el = renderer.domElement;
+el.addEventListener("pointerdown", e => { el.setPointerCapture(e.pointerId); ptr.set(e.pointerId,{x:e.clientX,y:e.clientY}); moved = 0; down = {x:e.clientX,y:e.clientY}; if(ptr.size===2) pinch = dist2(); });
+el.addEventListener("pointermove", e => {
+  const p = ptr.get(e.pointerId); if(!p) return;
+  const dx = e.clientX-p.x, dy = e.clientY-p.y; p.x=e.clientX; p.y=e.clientY; moved += Math.abs(dx)+Math.abs(dy);
+  if (ptr.size===1){ goal.th -= dx*.0065; goal.ph -= dy*.005; }
+  else if (ptr.size===2){ const n = dist2(); if(pinch) goal.d *= pinch/n; pinch = n; }
+  limit();
+});
+const up = e => {
+  if (ptr.has(e.pointerId) && ptr.size===1 && moved < 6 && e.type==="pointerup") pick(e);
+  ptr.delete(e.pointerId); pinch = 0;
+};
+el.addEventListener("pointerup", up); el.addEventListener("pointercancel", up);
+el.addEventListener("wheel", e => { e.preventDefault(); goal.d *= Math.exp(e.deltaY*.0012); limit(); }, {passive:false});
+function dist2(){ const a=[...ptr.values()]; return Math.hypot(a[0].x-a[1].x, a[0].y-a[1].y) || 1; }
+
+const ray = new THREE.Raycaster(), v2 = new THREE.Vector2();
+function pick(e){
+  const r = el.getBoundingClientRect();
+  v2.set((e.clientX-r.left)/r.width*2-1, -((e.clientY-r.top)/r.height*2-1));
+  ray.setFromCamera(v2, camera);
+  const h = ray.intersectObject(body, true)[0];
+  if (!h) return;
+  const p = h.point, y = p.y;
+  if (y >= 1.2 || (Math.abs(p.x) > .23 && y > .7)) return;
+  pilih(y >= 1.0 ? "pinggang" : y >= .83 ? "panggul" : y >= .6 ? (Math.abs(p.x) < .05 ? "pesak" : "panjang") : y >= .42 ? "lutut" : y >= .18 ? "panjang" : "pergelangan");
+}
+
+/* ---------- Antarmuka ---------- */
+const daftar = document.getElementById("daftar"), info = document.getElementById("info");
+let aktif = null;
+DATA.forEach((m,i) => {
+  const b = document.createElement("button"); b.dataset.id = m.id; b.innerHTML = `<b>${i+1}</b><span>${m.nama}</span>`;
+  b.onclick = () => pilih(m.id); daftar.appendChild(b);
+});
+function pilih(id){
+  aktif = id; const m = DATA.find(x=>x.id===id);
+  daftar.querySelectorAll("button").forEach(b => b.classList.toggle("aktif", b.dataset.id===id));
+  DATA.forEach(x => { ITEM[x.id].g.visible = x.id===id; });
+  info.innerHTML = `<h2>INFORMASI UKURAN</h2><h3>${m.nama}</h3>
+   <h4>Posisi awal meteran</h4><div class="awal">${m.awal}</div>
+   <h4>Langkah pengukuran</h4><ol>${m.langkah.map(s=>`<li>${s}</li>`).join("")}</ol>
+   <h4>Yang perlu diperhatikan</h4><ul>${m.perhatian.map(s=>`<li>${s}</li>`).join("")}</ul>`;
+  info.classList.remove("ganti"); void info.offsetWidth; info.classList.add("ganti");
+  setView({ph:AWAL.ph, ...m.view});
+}
+const vb = document.getElementById("views");
+[["Depan",0],["Kanan",-Math.PI/2],["Belakang",Math.PI],["Kiri",Math.PI/2]].forEach(([n,t]) => {
+  const b = document.createElement("button"); b.textContent = n; b.onclick = () => setView({th:t}); vb.appendChild(b);
+});
+document.getElementById("zin").onclick = () => { goal.d *= .8; limit(); };
+document.getElementById("zout").onclick = () => { goal.d *= 1.25; limit(); };
+document.getElementById("reset").onclick = () => { setView(AWAL); goal.th = nearest(cur.th, AWAL.th); };
+
+/* ---------- Loop render ---------- */
+function resize(){ const w = wrap.clientWidth, h = wrap.clientHeight; if(!w||!h) return; renderer.setSize(w,h,false); camera.aspect = w/h; camera.updateProjectionMatrix(); }
+new ResizeObserver(resize).observe(wrap); resize();
+let last = performance.now();
+renderer.setAnimationLoop(now => {
+  const dt = Math.min((now-last)/1000, .05); last = now;
+  const k = 1 - Math.exp(-dt*9);
+  for (const key of ["th","ph","d","ty"]) cur[key] += (goal[key]-cur[key])*k;
+  const s = Math.sin(cur.ph);
+  camera.position.set(Math.sin(cur.th)*s*cur.d, cur.ty + Math.cos(cur.ph)*cur.d, Math.cos(cur.th)*s*cur.d);
+  camera.lookAt(0, cur.ty, 0);
+  renderer.render(scene, camera);
+});
+pilih(DATA[0].id);
+</script>
 </body>
 </html>
